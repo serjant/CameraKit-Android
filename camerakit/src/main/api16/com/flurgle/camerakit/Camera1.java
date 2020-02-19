@@ -197,6 +197,11 @@ public class Camera1 extends CameraImpl {
     }
 
     @Override
+    void setVideoQuality(int videoQuality) {
+
+    }
+
+    @Override
     void captureImage() {
         switch (mMethod) {
             case METHOD_STANDARD:
@@ -213,7 +218,7 @@ public class Camera1 extends CameraImpl {
                 mCamera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
                     @Override
                     public void onPreviewFrame(byte[] data, Camera camera) {
-                        new Thread(new ProcessStillTask(data, camera, mCameraInfo, new ProcessStillTask.OnStillProcessedListener() {
+                        new Thread(new ProcessStillTask(data, camera, mCameraInfo.orientation, new ProcessStillTask.OnStillProcessedListener() {
                             @Override
                             public void onStillProcessed(final YuvImage yuv) {
                                 mCameraListener.onPictureTaken(yuv);

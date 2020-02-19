@@ -266,6 +266,14 @@ public class CameraView extends FrameLayout {
         return mCameraImpl != null ? mCameraImpl.getCaptureResolution() : null;
     }
 
+    public Camera getCamera() {
+        if(this.mCameraImpl != null) {
+            return this.mCameraImpl.getCamera();
+        }
+
+        return null;
+    }
+
     private void requestCameraPermission() {
         Activity activity = null;
         Context context = getContext();
