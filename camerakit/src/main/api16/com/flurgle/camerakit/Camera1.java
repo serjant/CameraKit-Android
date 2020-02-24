@@ -40,7 +40,6 @@ public class Camera1 extends CameraImpl {
     private MediaRecorder mMediaRecorder;
     private File mVideoFile;
     private Camera.AutoFocusCallback mAutofocusCallback;
-    private CameraOrientation cameraOrientation;
 
     private int mDisplayOrientation;
 
@@ -390,13 +389,6 @@ public class Camera1 extends CameraImpl {
             );
             int rotation = (calculateCameraRotation(mDisplayOrientation)
                     + (mFacing == CameraKit.Constants.FACING_FRONT ? 180 : 0)) % 360;
-
-            if (this.cameraOrientation == CameraOrientation.LANDSCAPE && rotation != 270 && rotation != 90) {
-                rotation = 90;
-            } else if (this.cameraOrientation == CameraOrientation.PORTRAIT && rotation != 0 && rotation != 180) {
-                rotation = 0;
-            }
-
             mCameraParameters.setRotation(rotation);
 
             setFocus(mFocus);
@@ -554,13 +546,5 @@ public class Camera1 extends CameraImpl {
             result = touchCoordinateInCameraReper - focusAreaSize / 2;
         }
         return result;
-    }
-
-    public CameraOrientation getCameraOrientation() {
-        return this.cameraOrientation;
-    }
-
-    public void setCameraOrientation(CameraOrientation cameraOrientation) {
-        this.cameraOrientation = cameraOrientation;
     }
 }

@@ -95,31 +95,31 @@ public class CameraView extends FrameLayout {
         setFocus(mFocus);
         setMethod(mMethod);
         setZoom(mZoom);
-
-/*        mDisplayOrientationDetector = new DisplayOrientationDetector(context) {
+        
+        mDisplayOrientationDetector = new DisplayOrientationDetector(context) {
             @Override
             public void onDisplayOrientationChanged(int displayOrientation) {
                 mCameraImpl.setDisplayOrientation(displayOrientation);
                 mPreviewImpl.setDisplayOrientation(displayOrientation);
             }
         };
-*/
+
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-/*        mDisplayOrientationDetector.enable(
+        mDisplayOrientationDetector.enable(
                 ViewCompat.isAttachedToWindow(this)
                         ? DisplayManagerCompat.getInstance(getContext()).getDisplay(Display.DEFAULT_DISPLAY)
                         : null
         );
-*/
+
     }
 
     @Override
     protected void onDetachedFromWindow() {
-//        mDisplayOrientationDetector.disable();
+        mDisplayOrientationDetector.disable();
         super.onDetachedFromWindow();
     }
 
@@ -127,7 +127,7 @@ public class CameraView extends FrameLayout {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         if (mAdjustViewBounds) {
             Size previewSize = getPreviewSize();
-            if(previewSize != null) {
+            if (previewSize != null) {
                 if (getLayoutParams().width == LayoutParams.WRAP_CONTENT) {
                     int height = MeasureSpec.getSize(heightMeasureSpec);
                     float ratio = (float) height / (float) previewSize.getWidth();
@@ -147,7 +147,7 @@ public class CameraView extends FrameLayout {
                     );
                     return;
                 }
-            }else{
+            } else {
                 super.onMeasure(widthMeasureSpec, heightMeasureSpec);
                 return;
             }
@@ -267,7 +267,7 @@ public class CameraView extends FrameLayout {
     }
 
     public Camera getCamera() {
-        if(this.mCameraImpl != null) {
+        if (this.mCameraImpl != null) {
             return this.mCameraImpl.getCamera();
         }
 
@@ -291,10 +291,12 @@ public class CameraView extends FrameLayout {
                     CameraKit.Constants.PERMISSION_REQUEST_CAMERA);
         }
     }
+
     float mDist = 0;
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if(mCameraImpl.getCamera() != null) {
+        if (mCameraImpl.getCamera() != null) {
             Camera.Parameters params = mCameraImpl.getCamera().getParameters();
             int action = event.getAction();
 
@@ -307,11 +309,11 @@ public class CameraView extends FrameLayout {
                 }
             } else {
                 if (action == MotionEvent.ACTION_UP) {
-                   // handleFocus(event, params);
+                    // handleFocus(event, params);
                 }
             }
             return true;
-        }else{
+        } else {
             return false;
         }
     }
@@ -355,10 +357,10 @@ public class CameraView extends FrameLayout {
         try {
             x = event.getX(0) - event.getX(1);
             y = event.getY(0) - event.getY(1);
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        return (float)Math.sqrt(x * x + y * y);
+        return (float) Math.sqrt(x * x + y * y);
     }
 
     private class CameraListenerMiddleWare extends CameraListener {
