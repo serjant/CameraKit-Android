@@ -389,7 +389,6 @@ public class Camera1 extends CameraImpl {
             );
             int rotation = (calculateCameraRotation(mDisplayOrientation)
                     + (mFacing == CameraKit.Constants.FACING_FRONT ? 180 : 0)) % 360;
-            rotation = this.mDisplayOrientation;
             mCameraParameters.setRotation(rotation);
 
             setFocus(mFocus);
