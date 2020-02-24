@@ -1,4 +1,4 @@
-package com.flurgle.camerakit;
+ package com.flurgle.camerakit;
 
 import android.graphics.Rect;
 import android.graphics.YuvImage;
@@ -389,6 +389,7 @@ public class Camera1 extends CameraImpl {
             );
             int rotation = (calculateCameraRotation(mDisplayOrientation)
                     + (mFacing == CameraKit.Constants.FACING_FRONT ? 180 : 0)) % 360;
+            rotation = this.mDisplayOrientation;
             mCameraParameters.setRotation(rotation);
 
             setFocus(mFocus);
