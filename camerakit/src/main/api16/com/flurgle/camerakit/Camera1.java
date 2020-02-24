@@ -1,4 +1,4 @@
- package com.flurgle.camerakit;
+package com.flurgle.camerakit;
 
 import android.graphics.Rect;
 import android.graphics.YuvImage;
@@ -6,6 +6,7 @@ import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
 
@@ -373,7 +374,7 @@ public class Camera1 extends CameraImpl {
 
     private void adjustCameraParameters() {
         try {
-            mPreview.setTruePreviewSize(
+            /*mPreview.setTruePreviewSize(
                     getPreviewResolution().getWidth(),
                     getPreviewResolution().getHeight()
             );
@@ -386,7 +387,37 @@ public class Camera1 extends CameraImpl {
             mCameraParameters.setPictureSize(
                     getCaptureResolution().getWidth(),
                     getCaptureResolution().getHeight()
-            );
+            );*/
+
+            Size resolution = getCaptureResolution();
+            int resolutionWidth = resolution.getWidth();
+            int resolutionHeight = resolution.getHeight();
+
+            if (resolutionHeight > resolutionWidth) {
+                mCameraParameters.setPreviewSize(resolutionHeight, resolutionWidth);
+                mCameraParameters.setPictureSize(resolutionHeight, resolutionWidth);
+                mPreview.setTruePreviewSize(resolutionHeight, resolutionWidth);
+            } else {
+                mCameraParameters.setPreviewSize(resolutionWidth, resolutionHeight);
+                mCameraParameters.setPictureSize(resolutionWidth, resolutionHeight);
+                mPreview.setTruePreviewSize(resolutionWidth, resolutionHeight);
+            }
+
+            switch (mDisplayOrientation) {
+                case Surface.ROTATION_0: // This is display orientation
+                    mCamera.setDisplayOrientation(90);
+                    break;
+                case Surface.ROTATION_90:
+                    mCamera.setDisplayOrientation(0);
+                    break;
+                case Surface.ROTATION_180:
+                    mCamera.setDisplayOrientation(270);
+                    break;
+                case Surface.ROTATION_270:
+                    mCamera.setDisplayOrientation(180);
+                    break;
+            }
+
             int rotation = (calculateCameraRotation(mDisplayOrientation)
                     + (mFacing == CameraKit.Constants.FACING_FRONT ? 180 : 0)) % 360;
             mCameraParameters.setRotation(rotation);
