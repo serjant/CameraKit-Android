@@ -40,6 +40,7 @@ public class Camera1 extends CameraImpl {
     private MediaRecorder mMediaRecorder;
     private File mVideoFile;
     private Camera.AutoFocusCallback mAutofocusCallback;
+    private CameraOrientation cameraOrientation;
 
     private int mDisplayOrientation;
 
@@ -336,14 +337,14 @@ public class Camera1 extends CameraImpl {
                 public void run() {
                     try {
                         Thread.sleep(3000);
-                        if(mCamera != null) {
+                        if (mCamera != null) {
                             if (mPreview.getOutputClass() == SurfaceHolder.class) {
                                 mCamera.setPreviewDisplay(mPreview.getSurfaceHolder());
                             } else {
                                 mCamera.setPreviewTexture(mPreview.getSurfaceTexture());
                             }
                         }
-                    }catch(Exception e){
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -389,13 +390,20 @@ public class Camera1 extends CameraImpl {
             );
             int rotation = (calculateCameraRotation(mDisplayOrientation)
                     + (mFacing == CameraKit.Constants.FACING_FRONT ? 180 : 0)) % 360;
+
+            if (this.cameraOrientation == CameraOrientation.LANDSCAPE && rotation != 270 && rotation != 90) {
+                rotation = 90;
+            } else if (this.cameraOrientation == CameraOrientation.PORTRAIT && rotation != 0 && rotation != 180) {
+                rotation = 0;
+            }
+
             mCameraParameters.setRotation(rotation);
 
             setFocus(mFocus);
             setFlash(mFlash);
 
             mCamera.setParameters(mCameraParameters);
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             //adjustCameraParameters();
         }
@@ -548,4 +556,11 @@ public class Camera1 extends CameraImpl {
         return result;
     }
 
+    public CameraOrientation getCameraOrientation() {
+        return this.cameraOrientation;
+    }
+
+    public void setCameraOrientation(CameraOrientation cameraOrientation) {
+        this.cameraOrientation = cameraOrientation;
+    }
 }
