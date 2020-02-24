@@ -63,7 +63,7 @@ public class CameraView extends FrameLayout {
     }
 
     @SuppressWarnings("all")
-    public CameraView(@NonNull Context context, @Nullable AttributeSet attrs) {
+    public CameraView(final @NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         if (attrs != null) {
             TypedArray a = context.getTheme().obtainStyledAttributes(
@@ -95,11 +95,11 @@ public class CameraView extends FrameLayout {
         setFocus(mFocus);
         setMethod(mMethod);
         setZoom(mZoom);
-        
+
         mDisplayOrientationDetector = new DisplayOrientationDetector(context) {
             @Override
-            public void onDisplayOrientationChanged(int displayOrientation) {
-                mCameraImpl.setDisplayOrientation(displayOrientation);
+            public void onDisplayOrDeviceOrientationChanged(int displayOrientation, int deviceOrientation) {
+                mCameraImpl.setDisplayAndDeviceOrientation(displayOrientation, deviceOrientation);
                 mPreviewImpl.setDisplayOrientation(displayOrientation);
             }
         };

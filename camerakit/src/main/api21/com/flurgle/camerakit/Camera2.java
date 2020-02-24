@@ -64,6 +64,11 @@ class Camera2 extends CameraImpl {
     }
 
     @Override
+    void setDisplayAndDeviceOrientation(int displayOrientation, int deviceOrientation) {
+
+    }
+
+    @Override
     void setFacing(@Facing int facing) {
         int internalFacing = new ConstantMapper.Facing(facing).map();
         if (internalFacing == -1) {

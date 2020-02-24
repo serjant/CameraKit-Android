@@ -1,4 +1,4 @@
- package com.flurgle.camerakit;
+package com.flurgle.camerakit;
 
 import android.graphics.Rect;
 import android.graphics.YuvImage;
@@ -41,7 +41,10 @@ public class Camera1 extends CameraImpl {
     private File mVideoFile;
     private Camera.AutoFocusCallback mAutofocusCallback;
 
+    private final Object mCameraLock = new Object();
+
     private int mDisplayOrientation;
+    private int mDeviceOrientation;
 
     @Facing
     private int mFacing;
@@ -58,6 +61,8 @@ public class Camera1 extends CameraImpl {
     @Zoom
     private int mZoom;
 
+    private boolean mShowingPreview = false;
+
     Camera1(CameraListener callback, PreviewImpl preview) {
         super(callback, preview);
         preview.setCallback(new PreviewImpl.Callback() {
@@ -66,6 +71,7 @@ public class Camera1 extends CameraImpl {
                 if (mCamera != null) {
                     setupPreview();
                     adjustCameraParameters();
+                    mShowingPreview = true;
                 }
             }
         });
@@ -82,17 +88,40 @@ public class Camera1 extends CameraImpl {
         openCamera();
         if (mPreview.isReady()) setupPreview();
         mCamera.startPreview();
+        mShowingPreview = true;
     }
 
     @Override
     void stop() {
         if (mCamera != null) mCamera.stopPreview();
         releaseCamera();
+        mShowingPreview = false;
     }
 
     @Override
     void setDisplayOrientation(int displayOrientation) {
         this.mDisplayOrientation = displayOrientation;
+    }
+
+    void setDisplayAndDeviceOrientation() {
+        setDisplayAndDeviceOrientation(this.mDisplayOrientation, this.mDeviceOrientation);
+    }
+
+    @Override
+    void setDisplayAndDeviceOrientation(int displayOrientation, int deviceOrientation) {
+        this.mDisplayOrientation = displayOrientation;
+        this.mDeviceOrientation = deviceOrientation;
+
+        synchronized (mCameraLock) {
+            if (isCameraOpened()) {
+                try {
+                    mCamera.setDisplayOrientation(calculateCameraRotation());
+                } catch (RuntimeException e) {
+                    // Camera is released. Ignore. Orientations are still valid in local member fields
+                    // so next time camera starts it will have correct configuration.
+                }
+            }
+        }
     }
 
     @Override
@@ -274,6 +303,15 @@ public class Camera1 extends CameraImpl {
 
     @Override
     Size getPreviewResolution() {
+        Size cameraPreviewResolution = getCameraPreviewResolution();
+        boolean invertPreviewSizes = (mCameraInfo.orientation + mDeviceOrientation) % 180 == 90;
+        if (invertPreviewSizes) {
+            return new Size(cameraPreviewResolution.getHeight(), cameraPreviewResolution.getWidth());
+        }
+        return cameraPreviewResolution;
+    }
+
+    Size getCameraPreviewResolution() {
         if (mPreviewSize == null && mCameraParameters != null) {
             TreeSet<Size> sizes = new TreeSet<>();
             for (Camera.Size size : mCameraParameters.getSupportedPreviewSizes()) {
@@ -284,7 +322,25 @@ public class Camera1 extends CameraImpl {
                     mCameraParameters.getSupportedPreviewSizes(),
                     mCameraParameters.getSupportedPictureSizes()
             );
-            AspectRatio targetRatio = aspectRatios.size() > 0 ? aspectRatios.last() : null;
+
+            AspectRatio targetRatio = null;
+
+            TreeSet<AspectRatio> videoAspectRatios = findCommonAspectRatios(
+                    mCameraParameters.getSupportedPreviewSizes(),
+                    mCameraParameters.getSupportedPictureSizes()
+            );
+
+            Iterator<AspectRatio> descendingIterator = aspectRatios.descendingIterator();
+            while (targetRatio == null && descendingIterator.hasNext()) {
+                AspectRatio ratio = descendingIterator.next();
+                if (videoAspectRatios.contains(ratio)) {
+                    targetRatio = ratio;
+                }
+            }
+
+            if (targetRatio == null) {
+                targetRatio = aspectRatios.size() > 0 ? aspectRatios.last() : null;
+            }
 
             Iterator<Size> descendingSizes = sizes.descendingIterator();
             Size size;
@@ -316,10 +372,7 @@ public class Camera1 extends CameraImpl {
         mCameraParameters = mCamera.getParameters();
 
         adjustCameraParameters();
-        mCamera.setDisplayOrientation(
-                calculateCameraRotation(mDisplayOrientation)
-        );
-
+        setDisplayAndDeviceOrientation();
         mCameraListener.onCameraOpened();
     }
 
@@ -363,43 +416,115 @@ public class Camera1 extends CameraImpl {
         }
     }
 
-    private int calculateCameraRotation(int rotation) {
+    private int calculateCameraRotation() {
         if (mCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-            return (360 - (mCameraInfo.orientation + rotation) % 360) % 360;
+            return (360 - (mCameraInfo.orientation + mDisplayOrientation) % 360) % 360;
         } else {
-            return (mCameraInfo.orientation - rotation + 360) % 360;
+            return (mCameraInfo.orientation - mDisplayOrientation + 360) % 360;
         }
     }
 
     private void adjustCameraParameters() {
-        try {
-            mPreview.setTruePreviewSize(
-                    getPreviewResolution().getWidth(),
-                    getPreviewResolution().getHeight()
-            );
+        synchronized (mCameraLock) {
+            if (mShowingPreview) {
+                mCamera.stopPreview();
+            }
+
+            adjustCameraParameters(0);
+
+            if (mShowingPreview) {
+                mCamera.startPreview();
+            }
+        }
+    }
+
+    private void adjustCameraParameters(int currentTry) {
+        boolean haveToReadjust = false;
+        Camera.Parameters resolutionLess = mCamera.getParameters();
+
+        if (getPreviewResolution() != null) {
+            mPreview.setTruePreviewSize(getPreviewResolution().getWidth(),
+                    getPreviewResolution().getHeight());
 
             mCameraParameters.setPreviewSize(
-                    getPreviewResolution().getWidth(),
-                    getPreviewResolution().getHeight()
+                    getCameraPreviewResolution().getWidth(),
+                    getCameraPreviewResolution().getHeight()
             );
 
+            try {
+                mCamera.setParameters(mCameraParameters);
+                resolutionLess = mCameraParameters;
+            } catch (Exception e) {
+                // Some phones can't set parameters that camerakit has chosen, so fallback to defaults
+                mCameraParameters = resolutionLess;
+            }
+        } else {
+            haveToReadjust = true;
+        }
+
+        if (getCaptureResolution() != null) {
             mCameraParameters.setPictureSize(
                     getCaptureResolution().getWidth(),
                     getCaptureResolution().getHeight()
             );
-            int rotation = (calculateCameraRotation(mDisplayOrientation)
-                    + (mFacing == CameraKit.Constants.FACING_FRONT ? 180 : 0)) % 360;
-            rotation = this.mDisplayOrientation;
-            mCameraParameters.setRotation(rotation);
 
-            setFocus(mFocus);
+            try {
+                mCamera.setParameters(mCameraParameters);
+                resolutionLess = mCameraParameters;
+            } catch (Exception e) {
+                e.printStackTrace();
+                //Some phones can't set parameters that camerakit has chosen, so fallback to defaults
+                mCameraParameters = resolutionLess;
+            }
+        } else {
+            haveToReadjust = true;
+        }
+
+        int rotation = calculateCaptureRotation();
+        mCameraParameters.setRotation(rotation);
+
+        setFocus(mFocus);
+
+        try {
             setFlash(mFlash);
-
-            mCamera.setParameters(mCameraParameters);
         } catch (Exception e) {
             e.printStackTrace();
-            //adjustCameraParameters();
         }
+
+        if (mCameraParameters.isZoomSupported()) {
+            setZoom(mZoom);
+        }
+
+        mCamera.setParameters(mCameraParameters);
+
+        if (haveToReadjust && currentTry < 100) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            adjustCameraParameters(currentTry + 1);
+        }
+    }
+
+    private int calculateCaptureRotation() {
+        int captureRotation = 0;
+        if (mCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            captureRotation = (mCameraInfo.orientation + mDisplayOrientation) % 360;
+        } else {  // back-facing camera
+            captureRotation = (mCameraInfo.orientation - mDisplayOrientation + 360) % 360;
+        }
+
+        // Accommodate for any extra device rotation relative to fixed screen orientations
+        // (e.g. activity fixed in portrait, but user took photo/video in landscape)
+        if (mCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            captureRotation = ((captureRotation - (mDisplayOrientation - mDeviceOrientation)) + 360) % 360;
+        } else {  // back-facing camera
+            captureRotation = (captureRotation + (mDisplayOrientation - mDeviceOrientation) + 360) % 360;
+        }
+
+        return captureRotation;
     }
 
     private TreeSet<AspectRatio> findCommonAspectRatios(List<Camera.Size> previewSizes, List<Camera.Size> captureSizes) {
